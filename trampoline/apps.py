@@ -63,8 +63,19 @@ def class_prepared_check_indexable(sender, **kwargs):
         pass
     else:
         if issubclass(sender, ESIndexableMixin):
-            post_save.connect(post_save_es_index, sender=sender)
-            post_delete.connect(post_delete_es_delete, sender=sender)
+            post_save.connect(
+                post_save_es_index,
+                sender=sender,
+                weak=False,
+                dispatch_uid='trampoline_post_save_{0}'.format(sender.__name__)
+            )
+            post_delete.connect(
+                post_delete_es_delete,
+                sender=sender,
+                weak=False,
+                dispatch_uid='trampoline_post_delete_{0}'
+                    .format(sender.__name__)
+            )
 
 
 class TrampolineConfig(AppConfig):
