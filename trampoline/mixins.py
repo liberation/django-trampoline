@@ -49,7 +49,7 @@ class ESIndexableMixin(object):
         index_name = index_name or doc_type._doc_type.index
         content_type = ContentType.objects.get_for_model(self)
 
-        logger.warning(
+        logger.error(
             "es_index",
             extra={
                 'model': self.__class__.__name__,
