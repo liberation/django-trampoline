@@ -49,15 +49,17 @@ class ESIndexableMixin(object):
         index_name = index_name or doc_type._doc_type.index
         content_type = ContentType.objects.get_for_model(self)
 
-        logger.error(
-            "es_index",
-            extra={
-                'model': self.__class__.__name__,
-                'index_name': index_name,
-                'content_type': content_type.pk,
-                'object_id': self.pk,
-            }
-        )
+        if str(self.pk).startswith('147'):
+            logger.error(
+                'es_index',
+                extra={
+                    'content_type': content_type.pk,
+                    'index_name': index_name,
+                    'model': self.__class__.__name__,
+                    'object_id': self.pk,
+                    'object_repr': self,
+                }
+            )
 
         if async:
             result = es_index_object.apply_async(
