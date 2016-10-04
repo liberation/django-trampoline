@@ -1,12 +1,15 @@
 """
 Mixins for trampoline.
 """
+import logging
+
 from django.contrib.contenttypes.models import ContentType
 
 from trampoline import get_trampoline_config
 from trampoline.tasks import es_delete_doc
 from trampoline.tasks import es_index_object
 
+logger = logging.getLogger(__name__)
 trampoline_config = get_trampoline_config()
 
 
@@ -45,6 +48,15 @@ class ESIndexableMixin(object):
         doc_type = self.get_es_doc_type()
         index_name = index_name or doc_type._doc_type.index
         content_type = ContentType.objects.get_for_model(self)
+
+        # Debug logger.
+        logger.error(
+            "es_index",
+            extra={
+                'object': vars(self),
+                'content_type': vars(content_type),
+            }
+        )
 
         if async:
             result = es_index_object.apply_async(
