@@ -48,8 +48,11 @@ def post_save_es_index(sender, instance, **kwargs):
     logger.error(
         "post_save_es_index",
         extra={
-            'sender': vars(sender),
-            'instance': vars(instance),
+            'object': {
+                'id': instance.pk,
+                'repr': unicode(instance),
+                'class': instance.__class__,
+            },
         }
     )
     if instance.is_indexable():

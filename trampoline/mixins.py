@@ -53,8 +53,11 @@ class ESIndexableMixin(object):
         logger.error(
             "es_index",
             extra={
-                'object': vars(self),
-                'content_type': vars(content_type),
+                'object': {
+                    'id': self.pk,
+                    'repr': unicode(self),
+                    'class': self.__class__,
+                },
             }
         )
 
