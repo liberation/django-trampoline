@@ -4,6 +4,7 @@ App config for trampoline.
 from copy import deepcopy
 import collections
 
+import logging
 import six
 
 from django.conf import settings
@@ -13,6 +14,8 @@ from django.db.models.signals import post_delete
 from django.db.models.signals import post_save
 
 from elasticsearch_dsl.connections import connections
+
+logger = logging.getLogger(__name__)
 
 try:
     from django.apps import AppConfig
@@ -41,6 +44,14 @@ def recursive_update(d, u):
 
 
 def post_save_es_index(sender, instance, **kwargs):
+    # Debug logger.
+    logger.error(
+        "post_save_es_index",
+        extra={
+            'sender': vars(sender),
+            'instance': vars(instance),
+        }
+    )
     if instance.is_indexable():
         try:
             # post_save fires after the save occurs but before the transaction
