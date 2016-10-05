@@ -49,16 +49,6 @@ class ESIndexableMixin(object):
         index_name = index_name or doc_type._doc_type.index
         content_type = ContentType.objects.get_for_model(self)
 
-        # Debug logger.
-        logger.error(
-            "es_index",
-            extra={
-                'object_id': self.pk,
-                'object_repr': unicode(self),
-                'object_class': self.__class__,
-            }
-        )
-
         if async:
             result = es_index_object.apply_async(
                 (index_name, content_type.pk, self.pk),
