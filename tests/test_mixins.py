@@ -8,6 +8,7 @@ from elasticsearch_dsl import Index
 from trampoline.mixins import ESIndexableMixin
 
 from tests.base import BaseTestCase
+from tests.models import Person
 from tests.models import Token
 
 
@@ -35,35 +36,58 @@ class TestMixins(BaseTestCase):
         )
 
     def test_get_es_doc(self):
-        token = Token(name='token')
+        token = Token(name="token")
         self.assertIsNone(token.get_es_doc())
         token.save()
         self.assertIsNotNone(token.get_es_doc())
 
+    def test_auto_doc_type_mapping(self):
+        person = Person(first_name="Simion", last_name="Baws")
+        person.save()
+        doc_type = person.get_es_doc_mapping()
+        self.assertEqual(doc_type.first_name, person.first_name)
+        self.assertEqual(doc_type.last_name, person.last_name)
+        self.assertEqual(
+            doc_type.full_name,
+            u"{0} {1}".format(person.first_name, person.last_name)
+        )
+
     def test_es_index(self):
-        # Asynchronous call.
-        token = Token.objects.create(name='not_indexable')
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = True
+        token = Token.objects.create(name='token')
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = False
         self.assertDocDoesntExist(token)
+
+        # Async
         token.es_index()
         self.assertDocExists(token)
 
-        # Synchronous call.
-        token = Token.objects.create(name='not_indexable')
+        token.es_delete()
         self.assertDocDoesntExist(token)
-        token.es_index(async=False)
+
+        # Sync
+        token.es_index(async=True)
         self.assertDocExists(token)
 
-        # Fail silently.
+        token = Token.objects.create(name='not_indexable')
+        self.assertDocDoesntExist(token)
+
         settings.TRAMPOLINE['OPTIONS']['disabled'] = True
         token = Token.objects.create(name='raise_exception')
         settings.TRAMPOLINE['OPTIONS']['disabled'] = False
+        # Async silent fail.
         token.es_index()
+        # Sync silent fail.
+        token.es_index(async=False)
         self.assertDocDoesntExist(token)
 
-        # Hard fail.
         settings.TRAMPOLINE['OPTIONS']['fail_silently'] = False
+        # Async hard fail.
         with self.assertRaises(RuntimeError):
             token.es_index()
+        # Sync hard fail.
+        with self.assertRaises(RuntimeError):
+            token.es_index(async=False)
         settings.TRAMPOLINE['OPTIONS']['fail_silently'] = True
 
     def test_es_delete(self):

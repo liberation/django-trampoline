@@ -5,7 +5,11 @@ Test settings for trampoline.
 DATABASES = {
     'default': {
         'NAME': 'trampoline.db',
-        'ENGINE': 'django.db.backends.sqlite3'
+        'ENGINE': 'django.db.backends.sqlite3',
+        'TEST': {
+            'NAME': 'trampoline.db',
+        },
+        'TEST_NAME': 'trampoline.db',
     }
 }
 
@@ -39,7 +43,12 @@ SECRET_KEY = 'secret-key'
 TRAMPOLINE = {
     'INDICES': {
         'foobar': {
-            'models': ('tests.models.Token',)
+            'models': [
+                'tests.models.Token',
+                # Make sure only one doc_type is created.
+                'tests.models.Token',
+                'tests.models.Person',
+            ]
         },
     },
     'OPTIONS': {

@@ -31,6 +31,13 @@ class ESBaseCommand(BaseCommand):
             default=None,
             help="Name of the target index."
         ),
+        'using': make_option(
+            '--using',
+            '-u',
+            dest='using',
+            default='default',
+            help="Connection name."
+        ),
     }
 
     option_list = BaseCommand.option_list + (
@@ -89,6 +96,7 @@ class ESBaseCommand(BaseCommand):
     RED = '\033[91m'
     DIM = '\033[2m'
     BOLD = '\033[1m'
+    PURPLE = '\033[35m'
     UNDERLINE = '\033[4m'
     RESET = '\033[0m'
 

@@ -2,6 +2,7 @@
 
 [![Build Status](https://travis-ci.org/laurentguilbert/django-trampoline.svg?branch=develop)](https://travis-ci.org/laurentguilbert/django-trampoline)
 [![Coverage Status](https://coveralls.io/repos/github/laurentguilbert/django-trampoline/badge.svg?branch=develop)](https://coveralls.io/github/laurentguilbert/django-trampoline?branch=develop)
+[![PyPI](https://img.shields.io/pypi/v/django-trampoline.svg)](https://pypi.python.org/pypi/django-trampoline)
 
 Trampoline provides you with tools to easily setup, manage and index your Django models in ElasticSearch. It uses **celery** and is heavily reliant on **elasticsearch_dsl**.
 
@@ -22,26 +23,30 @@ Add `trampoline` to your `INSTALLED_APPS`.
 Define the setting:
 ```python
 TRAMPOLINE = {
-  'HOST': 'localhost',
-  'INDICES': {
-    'index_name': {
-      'models': (
-        'app_name.models.ModelName',
-      ),
-    }
-  },
-  'OPTIONS': {
-    'fail_silently': True,
-    'disabled': False,
-  },
+    'CONNECTIONS': {
+        'default': {'hosts': 'localhost:9200'},
+        # 'another_conn': {'hosts': 'localhost:9201'},
+    },
+    'INDICES': {
+        'index_name': {
+            'models': (
+                'app_name.models.ModelName',
+            ),
+        }
+    },
+    'OPTIONS': {
+        'celery_queue': None,
+        'fail_silently': True,
+        'disabled': False,
+    },
 }
 ```
 
-### HOST
+### CONNECTIONS
 
-`localhost` by default.
+`localhost` is already set by default.
 
-Address of your ElasticSearch host.
+Mapping of the different ElasticSearch hosts used in your project.
 
 ### INDICES
 
@@ -50,6 +55,12 @@ Address of your ElasticSearch host.
 Each key inside `INDICES` represents an index which itself defines a list of `models` to be indexed.
 
 ### OPTIONS
+
+#### celery_queue
+
+`None` by default.
+
+Specify which Celery queue should handle your indexation tasks.
 
 #### fail_silently
 
@@ -73,18 +84,6 @@ In order to make your model indexable you must make it inherit from `ESIndexable
 
 Set the attribute `es_doc_type` with the corresponding `DocType` used to serialize your model.
 
-#### get_es_doc_mapping (required)
-
-```python
-def get_es_doc_mapping(self):
-    doc_type = self.es_doc_type()
-    doc_type.foo = self.foo
-    doc_type.bar = self.bar
-    return doc_type
-```
-
-Return an instance of `es_doc_type` mapped with your current model instance.
-
 #### is_indexable (optional)
 
 ```python
@@ -103,6 +102,50 @@ def get_indexable_queryset(cls):
 ```
 
 Return the list of contents that should be indexed for this model using the command `es_create_documents()` defined bellow. Make sure you don't forget the `classmethod` decorator.
+
+## DocType
+
+Mapping between your models and documents can either be manual or automatic. The two strategies are mutually exclusive.
+
+#### Manual mapping (default)
+
+Implement the method `get_es_doc_mapping` on your model and manually create your mapping.
+
+```python
+# myapp/models.py
+
+class MyModel(models.Model):
+
+    def get_es_doc_mapping(self):
+        doc_type = self.es_doc_type()
+        doc_type.foo = self.foo
+        doc_type.bar = self.bar
+        return doc_type
+```
+
+Return an instance of `es_doc_type` mapped with your current model instance.
+
+#### Automatic mapping
+
+Set `es_auto_doc_type_mapping` to `True` inside your model to enable automatic mapping.
+
+This method will automatically copy values from your model to your doc type.
+
+You can also override this behavior on a field by field basis by implementing a method named `prepare_{field}`.
+
+```python
+# myapp/doc_types.py
+
+import elasticsearch_dsl
+
+class MyDocType(elasticsearch_dsl.DocType):
+    simple_field = elasticsearch_dsl.String()
+    computed_field = elasticsearch_dsl.String()
+
+    def prepare_computed_field(self, obj):
+        # obj being an instance of your model.
+        return obj.field1 + obj.field2
+```
 
 ## Management commands
 
@@ -153,6 +196,8 @@ Create documents based on the method `get_indexable_queryset()` on the related m
 Arguments:
 - **--index**: Name of the index as defined in the settings.
 - **--target** *(optional)*: Name of the actual index.
+- **--threads** *(optional)*: Number of threads to be used, defaults to 4.
+- **--cleanup** *(optional)*: Delete stale documents from the index.
 
 **target** defaults to **index** if not provided.
 

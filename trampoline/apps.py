@@ -24,11 +24,14 @@ except ImportError:
 
 
 DEFAULT_TRAMPOLINE = {
-    'HOST': 'localhost',
+    'CONNECTIONS': {
+        'default': {'hosts': 'localhost'},
+    },
     'INDICES': {},
     'OPTIONS': {
         'fail_silently': True,
         'disabled': False,
+        'celery_queue': None
     },
 }
 
@@ -92,7 +95,13 @@ class TrampolineConfig(AppConfig):
         super(TrampolineConfig, self).__init__(*args, **kwargs)
 
     def ready(self):
-        connections.configure(default={'hosts': self.host})
+        if 'HOST' in self.settings:
+            raise NotImplementedError('"HOST" key replaced by "CONNECTIONS"')
+        options = {}
+        for alias, details in self.settings['CONNECTIONS'].items():
+            options[alias] = details
+
+        connections.configure(**options)
 
     def get_index_models(self, index_name):
         try:
@@ -105,7 +114,8 @@ class TrampolineConfig(AppConfig):
             module_path, model_name = model_path.rsplit('.', 1)
             module = __import__(module_path, fromlist=[''])
             model = getattr(module, model_name)
-            models.append(model)
+            if model not in models:
+                models.append(model)
         return models
 
     @property
@@ -124,9 +134,11 @@ class TrampolineConfig(AppConfig):
         TRAMPOLINE = deepcopy(DEFAULT_TRAMPOLINE)
         return recursive_update(TRAMPOLINE, USER_TRAMPOLINE)
 
-    @property
-    def connection(self):
-        return connections.get_connection()
+    def get_connection(self, alias='default'):
+        if not alias:
+            alias = 'default'
+        return connections.get_connection(alias)
+    connection = property(get_connection)
 
     @property
     def host(self):
@@ -144,6 +156,9 @@ class TrampolineConfig(AppConfig):
     def is_disabled(self):
         return self.settings['OPTIONS']['disabled']
 
+    @property
+    def celery_queue(self):
+        return self.settings['OPTIONS']['celery_queue']
 
 try:
     # Try to import AppConfig to check if this feature is available.
