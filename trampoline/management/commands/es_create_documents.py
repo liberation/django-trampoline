@@ -69,7 +69,7 @@ class Command(ESBaseCommand):
 
         for model in models:
             queryset = model.get_indexable_queryset()
-            object_ids = iter(queryset.values_list('pk', flat=True))
+            object_ids = queryset.values_list('pk', flat=True).iterator()
             object_count = queryset.count()
             content_type_id = ContentType.objects.get_for_model(model).pk
 
