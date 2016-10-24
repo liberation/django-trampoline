@@ -79,13 +79,13 @@ class Command(ESBaseCommand):
             if self.cleanup:
                 self.delete_stale_documents(model, object_ids)
 
-            progress_status = {
+            self.progress_status = {
                 STATUS_INDEXED: 0,
                 STATUS_FAILED: 0,
                 STATUS_IGNORED: 0,
             }
-            desc = self.get_progress_bar_desc(progress_status)
-            progress_bar = tqdm(
+            desc = self.get_progress_bar_desc(self.progress_status)
+            self.progress_bar = tqdm(
                 total=object_count,
                 dynamic_ncols=True,
                 desc=desc
@@ -93,40 +93,40 @@ class Command(ESBaseCommand):
 
             max_threads = self.get_max_threads()
             with ThreadPoolExecutor(max_workers=max_threads) as executor:
-                tasks = [
-                    executor.submit(
+                for object_id in object_ids:
+                    future = executor.submit(
                         self.index_object,
                         content_type_id,
                         object_id
                     )
-                    for object_id in object_ids
-                ]
-                for task in as_completed(tasks):
-                    result = task.result()
-
-                    status = result['status']
-                    if status in progress_status:
-                        progress_status[status] += 1
-
-                    exc = result.get('exc')
-                    if exc is not None:
-                        print(
-                            "FAILED: pk {0} (content_type {1})\n"
-                            .format(
-                                result['content_type_id'],
-                                result['object_id'],
-                            ),
-                            str(exc),
-                            file=self.log_file
-                        )
-
-                    desc = self.get_progress_bar_desc(progress_status)
-                    progress_bar.set_description(desc)
-                    progress_bar.update()
-            progress_bar.close()
+                    future.add_done_callback(self.done_callback)
+            self.progress_bar.close()
 
         self.log_file.close()
         self.print_success("Indexation completed.")
+
+    def done_callback(self, task):
+        result = task.result()
+
+        status = result['status']
+        if status in self.progress_status:
+            self.progress_status[status] += 1
+
+        exc = result.get('exc')
+        if exc is not None:
+            print(
+                "FAILED: pk {0} (content_type {1})\n"
+                .format(
+                    result['content_type_id'],
+                    result['object_id'],
+                ),
+                str(exc),
+                file=self.log_file
+            )
+
+        desc = self.get_progress_bar_desc(self.progress_status)
+        self.progress_bar.set_description(desc)
+        self.progress_bar.update()
 
     def delete_stale_documents(self, model, object_ids):
         self.print_info("Deleting stale documents.")
