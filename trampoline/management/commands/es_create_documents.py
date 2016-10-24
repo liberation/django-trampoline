@@ -69,7 +69,8 @@ class Command(ESBaseCommand):
 
         for model in models:
             queryset = model.get_indexable_queryset()
-            object_ids = queryset.values_list('pk', flat=True)
+            object_ids = iter(queryset.values_list('pk', flat=True))
+            object_count = queryset.count()
             content_type_id = ContentType.objects.get_for_model(model).pk
 
             model_name = model.__name__
@@ -85,7 +86,7 @@ class Command(ESBaseCommand):
             }
             desc = self.get_progress_bar_desc(progress_status)
             progress_bar = tqdm(
-                total=len(object_ids),
+                total=object_count,
                 dynamic_ncols=True,
                 desc=desc
             )
