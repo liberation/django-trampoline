@@ -40,7 +40,7 @@ def es_index_object(
         doc.save(index=index_name)
     except:
         if fail_silently:
-            logger.exception(
+            logger.error(
                 "Exception occured while indexing object.",
                 exc_info=True,
                 extra={
