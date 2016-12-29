@@ -21,7 +21,7 @@ STATUS_DELETED = 3
 
 @shared_task
 def es_index_object(
-        index_name,
+        index,
         content_type_id,
         object_id,
         fail_silently=None):
@@ -35,16 +35,22 @@ def es_index_object(
         obj = content_type.model_class()._default_manager.get(pk=object_id)
         if not obj.is_indexable():
             return STATUS_IGNORED
-        doc = obj.get_es_doc_mapping()
-        doc.meta.id = obj.pk
-        doc.save(index=index_name)
+
+        doc_type = obj.get_es_doc_type()
+        body = obj.get_es_body()
+        trampoline_config.es.create(
+            index=index,
+            doc_type=doc_type,
+            id=obj.pk,
+            body=body
+        )
     except:
         if fail_silently:
             logger.error(
                 "Exception occured while indexing object.",
                 exc_info=True,
                 extra={
-                    'index_name': index_name,
+                    'index': index,
                     'content_type_id': content_type_id,
                     'object_id': object_id,
                 }
@@ -57,10 +63,9 @@ def es_index_object(
 
 @shared_task
 def es_delete_doc(
-        index_name,
-        doc_type_name,
+        index,
+        doc_type,
         doc_id,
-        using=None,
         fail_silently=None):
     """
     Delete a document from the index.
@@ -68,9 +73,9 @@ def es_delete_doc(
     if fail_silently is None:
         fail_silently = trampoline_config.should_fail_silently
     try:
-        trampoline_config.get_connection(using).delete(
-            index=index_name,
-            doc_type=doc_type_name,
+        trampoline_config.es.delete(
+            index=index,
+            doc_type=doc_type,
             id=doc_id,
             ignore=404,
         )
@@ -80,8 +85,8 @@ def es_delete_doc(
                 "Exception occured while deleting document.",
                 exc_info=True,
                 extra={
-                    'index_name': index_name,
-                    'doc_type_name': doc_type_name,
+                    'index_name': index,
+                    'doc_type': doc_type,
                     'doc_id': doc_id,
                 }
             )

@@ -12,3 +12,4 @@ node_modules/
 nose_trampoline.egg-info/
 parts/
 trampoline.log
+ve/

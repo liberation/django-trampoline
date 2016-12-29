@@ -2,6 +2,8 @@
 Test settings for trampoline.
 """
 
+DEBUG = True
+
 DATABASES = {
     'default': {
         'NAME': 'trampoline.db',
@@ -41,20 +43,14 @@ SECRET_KEY = 'secret-key'
 ##################################################
 
 TRAMPOLINE = {
-    'INDICES': {
-        'foobar': {
-            'models': [
-                'tests.models.Token',
-                # Make sure only one doc_type is created.
-                'tests.models.Token',
-                'tests.models.Person',
-            ]
-        },
-    },
+    'MODELS': [
+        'tests.models.Token',
+    ],
     'OPTIONS': {
         'disabled': False,
         'fail_silently': True,
     },
+    'VERSION_SUFFIX': '_1',
 }
 
 ##################################################

@@ -7,13 +7,13 @@ import collections
 import logging
 import six
 
+from elasticsearch import Elasticsearch
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models.signals import class_prepared
 from django.db.models.signals import post_delete
 from django.db.models.signals import post_save
-
-from elasticsearch_dsl.connections import connections
 
 logger = logging.getLogger(__name__)
 
@@ -24,15 +24,16 @@ except ImportError:
 
 
 DEFAULT_TRAMPOLINE = {
-    'CONNECTIONS': {
-        'default': {'hosts': 'localhost'},
-    },
-    'INDICES': {},
+    'HOSTS': [
+        {'host': 'localhost'},
+    ],
+    'MODELS': [],
     'OPTIONS': {
         'fail_silently': True,
         'disabled': False,
         'celery_queue': None
     },
+    'VERSION_SUFFIX': '',
 }
 
 
@@ -65,8 +66,8 @@ def class_prepared_check_indexable(sender, **kwargs):
     trampoline_config = get_trampoline_config()
 
     # Only register indexation signals for models defined in the settings.
-    sender_path = u"{0}.{1}".format(sender.__module__, sender.__name__)
-    if sender_path not in trampoline_config.model_paths:
+    sender_path = '{0}.{1}'.format(sender.__module__, sender.__name__)
+    if sender_path not in trampoline_config.models_paths:
         return
 
     post_save.connect(
@@ -79,10 +80,7 @@ def class_prepared_check_indexable(sender, **kwargs):
         post_delete_es_delete,
         sender=sender,
         weak=False,
-        dispatch_uid=(
-            'trampoline_post_delete_{0}'
-            .format(sender.__name__)
-        )
+        dispatch_uid='trampoline_post_delete_{0}'.format(sender.__name__)
     )
 
 
@@ -95,38 +93,7 @@ class TrampolineConfig(AppConfig):
         super(TrampolineConfig, self).__init__(*args, **kwargs)
 
     def ready(self):
-        if 'HOST' in self.settings:
-            raise NotImplementedError('"HOST" key replaced by "CONNECTIONS"')
-        options = {}
-        for alias, details in self.settings['CONNECTIONS'].items():
-            options[alias] = details
-
-        connections.configure(**options)
-
-    def get_index_models(self, index_name):
-        try:
-            model_paths = self.indices[index_name]['models']
-        except KeyError:
-            return []
-
-        models = []
-        for model_path in model_paths:
-            module_path, model_name = model_path.rsplit('.', 1)
-            module = __import__(module_path, fromlist=[''])
-            model = getattr(module, model_name)
-            if model not in models:
-                models.append(model)
-        return models
-
-    @property
-    def model_paths(self):
-        model_paths = []
-        for index_name in self.indices:
-            try:
-                model_paths += self.indices[index_name]['models']
-            except KeyError:
-                pass
-        return model_paths
+        self._es = Elasticsearch(hosts=self.hosts)
 
     @property
     def settings(self):
@@ -134,19 +101,33 @@ class TrampolineConfig(AppConfig):
         TRAMPOLINE = deepcopy(DEFAULT_TRAMPOLINE)
         return recursive_update(TRAMPOLINE, USER_TRAMPOLINE)
 
-    def get_connection(self, alias='default'):
-        if not alias:
-            alias = 'default'
-        return connections.get_connection(alias)
-    connection = property(get_connection)
+    @property
+    def es(self):
+        return self._es
 
     @property
-    def host(self):
-        return self.settings['HOST']
+    def indexable_models(self):
+        models = []
+        for model_path in self.models_paths:
+            module_path, model_name = model_path.rsplit('.', 1)
+            print(module_path, model_name)
+            module = __import__(module_path, fromlist=[''])
+            model = getattr(module, model_name)
+            if model not in models:
+                models.append(model)
+        return models
 
     @property
-    def indices(self):
-        return self.settings['INDICES']
+    def hosts(self):
+        return self.settings['HOSTS']
+
+    @property
+    def version_suffix(self):
+        return self.settings['VERSION_SUFFIX']
+
+    @property
+    def models_paths(self):
+        return self.settings['MODELS']
 
     @property
     def should_fail_silently(self):
@@ -163,13 +144,13 @@ class TrampolineConfig(AppConfig):
 try:
     # Try to import AppConfig to check if this feature is available.
     from django.apps import AppConfig  # noqa
-
-    def get_trampoline_config():
-        from django.apps import apps
-        return apps.get_app_config('trampoline')
 except ImportError:
     app_config = TrampolineConfig()
     app_config.ready()
 
     def get_trampoline_config():
         return app_config
+else:
+    def get_trampoline_config():
+        from django.apps import apps
+        return apps.get_app_config('trampoline')

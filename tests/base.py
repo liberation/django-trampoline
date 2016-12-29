@@ -11,29 +11,29 @@ trampoline_config = get_trampoline_config()
 class BaseTestCase(TransactionTestCase):
 
     def refresh(self):
-        trampoline_config.connection.indices.refresh('_all')
+        trampoline_config.es.indices.refresh('_all')
 
-    def docExists(self, obj, obj_id):
+    def docExists(self, obj):
         doc_type = obj.get_es_doc_type()
-        doc_type_name = doc_type._doc_type.name
-        index_name = doc_type._doc_type.index
-        obj_id = obj_id or obj.pk
-        return trampoline_config.connection.exists(
-            index=index_name,
-            doc_type=doc_type_name,
-            id=obj_id,
+        index = obj.get_es_index()
+        return trampoline_config.es.exists(
+            index=index,
+            doc_type=doc_type,
+            id=obj.pk
         )
 
     def aliasExists(self, index, name):
-        return trampoline_config.connection.indices.exists_alias(
+        return trampoline_config.es.indices.exists_alias(
             index=index, name=name)
 
     def indexExists(self, index):
-        return trampoline_config.connection.indices.exists(index=index)
+        return trampoline_config.es.indices.exists(index=index)
 
-    def typeExists(self, index, doc_type_name):
-        return trampoline_config.connection.indices.exists_type(
-            index=index, doc_type=doc_type_name)
+    def typeExists(self, index, doc_type):
+        return trampoline_config.es.indices.exists_type(
+            index=index,
+            doc_type=doc_type
+        )
 
     def assertAliasExists(self, index, name):
         self.assertTrue(self.aliasExists(index, name))
@@ -53,8 +53,8 @@ class BaseTestCase(TransactionTestCase):
     def assertTypeDoesntExist(self, index, doc_type):
         self.assertFalse(self.typeExists(index, doc_type))
 
-    def assertDocExists(self, obj, obj_id=None):
-        self.assertTrue(self.docExists(obj, obj_id))
+    def assertDocExists(self, obj):
+        self.assertTrue(self.docExists(obj))
 
-    def assertDocDoesntExist(self, obj, obj_id=None):
-        self.assertFalse(self.docExists(obj, obj_id))
+    def assertDocDoesntExist(self, obj):
+        self.assertFalse(self.docExists(obj))

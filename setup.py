@@ -10,9 +10,9 @@ exec(open('trampoline/version.py').read())
 
 install_requires = [
     'celery',
-    'elasticsearch_dsl>=2.0.0,<3.0.0',
-    'tqdm',
+    'elasticsearch',
     'six',
+    'tqdm',
 ]
 if sys.version_info.major == 2:
     install_requires.append('futures')
