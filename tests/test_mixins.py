@@ -81,20 +81,28 @@ class TestMixins(BaseTestCase):
         settings.TRAMPOLINE['OPTIONS']['fail_silently'] = True
 
     def test_es_delete(self):
-        # Asynchronous call.
+        # Async call.
         token = Token.objects.create(name='token')
         self.assertDocExists(token)
         token.es_delete()
         self.assertDocDoesntExist(Token)
 
-        # Synchronous call.
+        # Sync call.
         token = Token.objects.create(name='token')
         self.assertDocExists(token)
         token.es_delete(async=False)
         self.assertDocDoesntExist(Token)
 
-        # Fail silently if document doesn't exist.
+        # Async soft fail if document doesn't exist.
         token.es_delete()
+
+        # Sync soft fail.
+        token.es_delete(async=False)
+
+        # Async hard fail.
+        settings.TRAMPOLINE['OPTIONS']['fail_silently'] = False
+        token.es_delete(async=False)
+        settings.TRAMPOLINE['OPTIONS']['fail_silently'] = True
 
     def test_save(self):
         token = Token(name='token')
