@@ -10,16 +10,20 @@ trampoline_config = get_trampoline_config()
 
 class BaseTestCase(TransactionTestCase):
 
+    def setUp(self):
+        super(BaseTestCase, self).setUp()
+        self.trampoline_config = trampoline_config
+
     def refresh(self):
         trampoline_config.es.indices.refresh('_all')
 
-    def docExists(self, obj):
+    def docExists(self, obj, token_id=None):
         doc_type = obj.get_es_doc_type()
         index = obj.get_es_index()
         return trampoline_config.es.exists(
             index=index,
             doc_type=doc_type,
-            id=obj.pk
+            id=token_id or obj.pk
         )
 
     def aliasExists(self, index, name):
@@ -53,8 +57,16 @@ class BaseTestCase(TransactionTestCase):
     def assertTypeDoesntExist(self, index, doc_type):
         self.assertFalse(self.typeExists(index, doc_type))
 
-    def assertDocExists(self, obj):
-        self.assertTrue(self.docExists(obj))
+    def assertDocExists(self, obj, token_id=None):
+        self.assertTrue(self.docExists(obj, token_id))
 
-    def assertDocDoesntExist(self, obj):
-        self.assertFalse(self.docExists(obj))
+    def assertDocDoesntExist(self, obj, token_id=None):
+        self.assertFalse(self.docExists(obj, token_id))
+
+    def createIndex(self, index):
+        trampoline_config.es.indices.create(index=index)
+        self.refresh()
+
+    def deleteIndex(self, index):
+        trampoline_config.es.indices.delete(index=index, ignore=404)
+        self.refresh()

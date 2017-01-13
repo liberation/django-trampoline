@@ -50,7 +50,6 @@ TRAMPOLINE = {
         'disabled': False,
         'fail_silently': True,
     },
-    'VERSION_SUFFIX': '_1',
 }
 
 ##################################################

@@ -25,7 +25,7 @@ class ESIndexableMixin(object):
 
     @classmethod
     def get_es_index(cls):
-        return cls.__name__.lower() + trampoline_config.version_suffix
+        return cls.__name__.lower()
 
     @classmethod
     def get_es_doc_type(cls):

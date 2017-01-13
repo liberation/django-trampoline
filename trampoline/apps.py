@@ -33,7 +33,6 @@ DEFAULT_TRAMPOLINE = {
         'disabled': False,
         'celery_queue': None
     },
-    'VERSION_SUFFIX': '',
 }
 
 
@@ -110,7 +109,6 @@ class TrampolineConfig(AppConfig):
         models = []
         for model_path in self.models_paths:
             module_path, model_name = model_path.rsplit('.', 1)
-            print(module_path, model_name)
             module = __import__(module_path, fromlist=[''])
             model = getattr(module, model_name)
             if model not in models:
@@ -120,10 +118,6 @@ class TrampolineConfig(AppConfig):
     @property
     def hosts(self):
         return self.settings['HOSTS']
-
-    @property
-    def version_suffix(self):
-        return self.settings['VERSION_SUFFIX']
 
     @property
     def models_paths(self):

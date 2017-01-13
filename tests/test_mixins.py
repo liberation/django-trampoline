@@ -80,77 +80,57 @@ class TestMixins(BaseTestCase):
             token.es_index(async=False)
         settings.TRAMPOLINE['OPTIONS']['fail_silently'] = True
 
-    # def test_es_delete(self):
-    #     # Asynchronous call.
-    #     token = Token.objects.create(name='token')
-    #     self.assertDocExists(token)
-    #     token.es_delete()
-    #     self.assertDocDoesntExist(Token, token.pk)
-    #
-    #     # Synchronous call.
-    #     token = Token.objects.create(name='token')
-    #     self.assertDocExists(token)
-    #     token.es_delete(async=False)
-    #     self.assertDocDoesntExist(Token, token.pk)
-    #
-    #     # Fail silently if document doesn't exist.
-    #     token.es_delete()
-    #
-    #     from trampoline import get_trampoline_config
-    #     trampoline_config = get_trampoline_config()
-    #
-    #     # Fake delete to raise exception.
-    #     backup_delete = trampoline_config.connection.delete
-    #
-    #     def delete_raise_exception(*args, **kwargs):
-    #         raise RuntimeError
-    #     trampoline_config.connection.delete = delete_raise_exception
-    #
-    #     # Fail silently
-    #     token.es_delete()
-    #
-    #     # Hard fail.
-    #     settings.TRAMPOLINE['OPTIONS']['fail_silently'] = False
-    #     with self.assertRaises(RuntimeError):
-    #         token.es_delete()
-    #     settings.TRAMPOLINE['OPTIONS']['fail_silently'] = True
-    #
-    #     trampoline_config.connection.delete = backup_delete
-    #
-    # def test_save(self):
-    #     token = Token(name='token')
-    #
-    #     settings.TRAMPOLINE['OPTIONS']['disabled'] = True
-    #     token.save()
-    #     settings.TRAMPOLINE['OPTIONS']['disabled'] = False
-    #     self.assertDocDoesntExist(token)
-    #
-    #     token.save()
-    #     doc = token.get_es_doc()
-    #     self.assertEqual(doc.name, 'token')
-    #     self.assertEqual(doc._id, str(token.pk))
-    #
-    #     # Update model and synchronise doc.
-    #     token.name = 'kento'
-    #     token.save()
-    #     doc = token.get_es_doc()
-    #     self.assertEqual(doc.name, 'kento')
-    #
-    #     # Instance is not indexable.
-    #     token = Token.objects.create(name='not_indexable')
-    #     self.assertDocDoesntExist(token)
-    #
-    # def test_delete(self):
-    #     token = Token.objects.create(name='token')
-    #     token_id = token.pk
-    #     self.assertDocExists(token)
-    #
-    #     settings.TRAMPOLINE['OPTIONS']['disabled'] = True
-    #     token.delete()
-    #     settings.TRAMPOLINE['OPTIONS']['disabled'] = False
-    #     self.assertDocExists(Token, token_id)
-    #
-    #     token.save()
-    #     token_id = token.pk
-    #     token.delete()
-    #     self.assertDocDoesntExist(Token, token_id)
+    def test_es_delete(self):
+        # Asynchronous call.
+        token = Token.objects.create(name='token')
+        self.assertDocExists(token)
+        token.es_delete()
+        self.assertDocDoesntExist(Token)
+
+        # Synchronous call.
+        token = Token.objects.create(name='token')
+        self.assertDocExists(token)
+        token.es_delete(async=False)
+        self.assertDocDoesntExist(Token)
+
+        # Fail silently if document doesn't exist.
+        token.es_delete()
+
+    def test_save(self):
+        token = Token(name='token')
+
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = True
+        token.save()
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = False
+        self.assertDocDoesntExist(token)
+
+        token.save()
+        doc = token.get_es_doc()
+        self.assertEqual(doc['_source']['name'], 'token')
+        self.assertEqual(doc['_id'], str(token.pk))
+
+        # Update model and synchronise doc.
+        token.name = 'kento'
+        token.save()
+        self.refresh()
+        doc = token.get_es_doc()
+        self.assertEqual(doc['_source']['name'], 'kento')
+
+        # Instance is not indexable.
+        token = Token.objects.create(name='not_indexable')
+        self.assertDocDoesntExist(token)
+
+    def test_delete(self):
+        token = Token.objects.create(name='token')
+        token_id = token.pk
+        self.assertDocExists(token)
+
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = True
+        token.delete()
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = False
+        self.assertDocExists(Token, token_id)
+
+        token.save()
+        token_id = token.pk
+        token.delete()
+        self.assertDocDoesntExist(token, token_id)

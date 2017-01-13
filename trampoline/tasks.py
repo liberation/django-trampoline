@@ -38,7 +38,8 @@ def es_index_object(
 
         doc_type = obj.get_es_doc_type()
         body = obj.get_es_body()
-        trampoline_config.es.create(
+        trampoline_config.es.index(
+            op_type='index',
             index=index,
             doc_type=doc_type,
             id=obj.pk,

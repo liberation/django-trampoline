@@ -33,6 +33,11 @@ class Token(ESIndexableMixin, models.Model):
             return False
         return True
 
+    def get_es_body(self):
+        if self.name == 'raise_exception':
+            raise RuntimeError
+        return super(Token, self).get_es_body()
+
     @classmethod
     def get_es_doc_type_mapping(self):
         return {

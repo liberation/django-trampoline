@@ -17,26 +17,19 @@ class ESBaseCommand(BaseCommand):
     required_options = []
 
     options = {
-        'index_name': make_option(
+        'index': make_option(
             '--index',
             '-i',
-            dest='index_name',
+            dest='index',
             default=None,
             help="Name of the index."
         ),
-        'target_name': make_option(
+        'target': make_option(
             '--target',
             '-t',
-            dest='target_name',
+            dest='target',
             default=None,
             help="Name of the target index."
-        ),
-        'using': make_option(
-            '--using',
-            '-u',
-            dest='using',
-            default='default',
-            help="Connection name."
         ),
     }
 

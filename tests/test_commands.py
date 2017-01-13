@@ -4,13 +4,8 @@ Test management commands for trampoline.
 from django.conf import settings
 from django.core.management import call_command
 
-from elasticsearch_dsl import Index
-
 from tests.base import BaseTestCase
 from tests.models import Token
-from trampoline import get_trampoline_config
-
-trampoline_config = get_trampoline_config()
 
 
 class TestCommands(BaseTestCase):
@@ -18,121 +13,87 @@ class TestCommands(BaseTestCase):
     def tearDown(self):
         super(TestCommands, self).tearDown()
         # Delete remnants of previous tests.
-        Index('foobar').delete(ignore=404)
-        Index('foobar_target').delete(ignore=404)
+        self.deleteIndex('foobar_target')
+        self.deleteIndex('foobar')
+        self.deleteIndex(Token.get_es_index())
 
-    def test_es_create_index(self):
-        # Index name required.
-        with self.assertRaises(SystemExit):
-            call_command('es_create_index')
-
-        # Index name isn't defined.
-        with self.assertRaises(SystemExit):
-            call_command('es_create_index', index_name='doesntexist')
+    def test_es_create_documents(self):
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = True
+        token = Token.objects.create()
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = False
+        self.assertDocDoesntExist(token)
 
         # Dry run.
-        call_command(
-            'es_create_index',
-            index_name='foobar',
-            target_name='foobar_target',
-            dry_run=True
-        )
-        self.assertIndexDoesntExist('foobar_target')
+        call_command('es_create_documents', dry_run=True)
+        self.assertDocDoesntExist(token)
 
-        # Successful call.
-        call_command(
-            'es_create_index',
-            index_name='foobar',
-            target_name='foobar_target'
-        )
-        self.assertIndexExists('foobar_target')
-        self.assertTypeExists(index='foobar_target', doc_type='token')
-        self.assertIndexDoesntExist('foobar')
+        call_command('es_create_documents')
+        self.assertDocExists(token)
 
-        # Index already exists.
-        # If verbosity is not an int it defaults to 1.
-        with self.assertRaises(SystemExit):
-            call_command(
-                'es_create_index',
-                index_name='foobar',
-                target_name='foobar_target',
-                traceback=True,
-                verbosity='notint'
-            )
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = True
+        token = Token.objects.create(name='raise_exception')
+        settings.TRAMPOLINE['OPTIONS']['disabled'] = False
 
-    def test_es_delete_index(self):
-        # Index name required.
-        with self.assertRaises(SystemExit):
-            call_command('es_delete_index')
+        call_command('es_create_documents')
+        self.assertDocDoesntExist(token)
 
-        # Index doesn't exist.
-        with self.assertRaises(SystemExit):
-            call_command(
-                'es_delete_index',
-                index_name='foobar',
-                yes=True
-            )
+    def test_es_create_indices(self):
+        # Dry run.
+        call_command('es_create_indices', dry_run=True)
+        self.assertIndexDoesntExist(Token.get_es_index())
 
-        index = Index('foobar')
-        index.create()
-        self.refresh()
-        self.assertIndexExists('foobar')
+        call_command('es_create_indices')
+        self.assertIndexExists(Token.get_es_index())
 
-        call_command(
-            'es_delete_index',
-            index_name='foobar',
-            yes=True
-        )
-        self.assertIndexDoesntExist('foobar')
+        # Skip already created indices silently.
+        call_command('es_create_indices')
 
     def test_es_create_alias(self):
         # Index name required.
         with self.assertRaises(SystemExit):
             call_command(
                 'es_create_alias',
-                target_name='foobar_target'
+                target='foobar_target'
             )
 
         # Target name required.
         with self.assertRaises(SystemExit):
             call_command(
                 'es_create_alias',
-                index_name='foobar'
+                index='foobar'
             )
 
         # Index doesn't exist.
         with self.assertRaises(SystemExit):
             call_command(
                 'es_create_alias',
-                index_name='foobar',
-                target_name='foobar_target'
+                index='foobar',
+                target='foobar_target'
             )
 
-        index = Index('foobar_target')
-        index.create()
-        self.refresh()
+        self.createIndex('foobar_target')
 
         # Alias with same name as index.
         with self.assertRaises(SystemExit):
             call_command(
                 'es_create_alias',
-                index_name='foobar_target',
-                target_name='foobar_target'
+                index='foobar_target',
+                target='foobar_target'
             )
 
         # Dry run.
         call_command(
             'es_create_alias',
-            index_name='foobar',
-            target_name='foobar_target',
+            index='foobar',
+            target='foobar_target',
             dry_run=True
         )
         self.assertAliasDoesntExist(index='foobar_target', name='foobar')
 
         call_command(
             'es_create_alias',
-            index_name='foobar',
-            target_name='foobar_target'
+            index='foobar',
+            target='foobar_target'
         )
         self.assertAliasExists(index='foobar_target', name='foobar')
 
@@ -141,122 +102,46 @@ class TestCommands(BaseTestCase):
         with self.assertRaises(SystemExit):
             call_command(
                 'es_delete_alias',
-                target_name='foobar_target'
+                target='foobar_target'
             )
 
         # Target name required.
         with self.assertRaises(SystemExit):
             call_command(
                 'es_delete_alias',
-                index_name='foobar'
+                index='foobar'
             )
 
         # Index doesn't exist.
         with self.assertRaises(SystemExit):
             call_command(
                 'es_delete_alias',
-                index_name='foobar',
-                target_name='foobar_target',
+                index='foobar',
+                target='foobar_target',
                 yes=True
             )
 
-        index = Index('foobar_target')
-        index.create()
-        self.refresh()
+        self.createIndex('foobar_target')
 
         # Alias doesn't exist.
         with self.assertRaises(SystemExit):
             call_command(
                 'es_delete_alias',
-                index_name='foobar',
-                target_name='foobar_target',
+                index='foobar',
+                target='foobar_target',
                 yes=True
             )
 
-        trampoline_config.connection.indices.put_alias(
-            index='foobar_target', name='foobar')
+        self.trampoline_config.es.indices.put_alias(
+            index='foobar_target',
+            name='foobar'
+        )
         self.assertAliasExists(index='foobar_target', name='foobar')
 
         call_command(
             'es_delete_alias',
-            index_name='foobar',
-            target_name='foobar_target',
+            index='foobar',
+            target='foobar_target',
             yes=True
         )
         self.assertAliasDoesntExist(index='foobar_target', name='foobar')
-
-    def test_es_create_documents(self):
-        # Index name required.
-        with self.assertRaises(SystemExit):
-            call_command('es_create_documents')
-
-        # index_name not in settings.
-        with self.assertRaises(SystemExit):
-            call_command(
-                'es_create_documents',
-                index_name='barfoo'
-            )
-
-        # Index doesn't exist.
-        with self.assertRaises(SystemExit):
-            call_command(
-                'es_create_documents',
-                index_name='foobar'
-            )
-
-        index = Index('foobar')
-        doc_type = Token.get_es_doc_type()
-        index.doc_type(doc_type)
-        index.create()
-        self.refresh()
-
-        # Disable auto indexing while creating objects.
-        settings.TRAMPOLINE['OPTIONS']['disabled'] = True
-        token = Token.objects.create(name='token')
-        token_not_indexable = Token.objects.create(name='not_indexable')
-        token_raise_exception = Token.objects.create(name='raise_exception')
-        settings.TRAMPOLINE['OPTIONS']['disabled'] = False
-
-        # Dry run.
-        call_command(
-            'es_create_documents',
-            index_name='foobar',
-            dry_run=True
-        )
-        self.assertDocDoesntExist(token)
-        self.assertDocDoesntExist(token_not_indexable)
-        self.assertDocDoesntExist(token_raise_exception)
-
-        # Cleanup stale documents.
-        token_stale = Token.objects.create(name='stale')
-        token_stale_pk = token_stale.pk
-        settings.TRAMPOLINE['OPTIONS']['disabled'] = True
-        token_stale.delete()
-        settings.TRAMPOLINE['OPTIONS']['disabled'] = False
-        self.refresh()
-
-        self.assertTrue(self.docExists(token_stale, token_stale_pk))
-        call_command(
-            'es_create_documents',
-            index_name='foobar',
-            cleanup=True
-        )
-
-        self.assertFalse(self.docExists(token_stale, token_stale_pk))
-        self.assertDocExists(token)
-        self.assertDocDoesntExist(token_not_indexable)
-        self.assertDocDoesntExist(token_raise_exception)
-
-        # Handle bad threads value.
-        call_command(
-            'es_create_documents',
-            index_name='foobar',
-            dry_run=True,
-            max_threads='foobar'
-        )
-        call_command(
-            'es_create_documents',
-            index_name='foobar',
-            dry_run=True,
-            max_threads=-42
-        )
