@@ -40,7 +40,7 @@ def es_index_object(
         doc.save(index=index_name)
     except:
         if fail_silently:
-            logger.error(
+            logger.exception(
                 "Exception occured while indexing object.",
                 extra={
                     'index_name': index_name,
@@ -75,7 +75,7 @@ def es_delete_doc(
         )
     except:
         if trampoline_config.should_fail_silently:
-            logger.error(
+            logger.exception(
                 "Exception occured while deleting document.",
                 extra={
                     'index_name': index_name,

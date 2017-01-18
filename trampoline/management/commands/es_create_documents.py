@@ -59,13 +59,6 @@ class Command(ESBaseCommand):
     option_list = ESBaseCommand.option_list + (
         ESBaseCommand.options['index_name'],
         ESBaseCommand.options['target_name'],
-        make_option(
-            '--cleanup',
-            dest='cleanup',
-            action='store_true',
-            default=False,
-            help="Delete stale documents."
-        ),
     )
     required_options = ('index_name',)
 
@@ -93,9 +86,6 @@ class Command(ESBaseCommand):
 
             model_name = model.__name__
             self.print_info(u"Processing model: '{0}'.".format(model_name))
-
-            if self.cleanup:
-                self.delete_stale_documents(model, object_ids)
 
             self.progress_status = {
                 STATUS_INDEXED: 0,
@@ -154,17 +144,6 @@ class Command(ESBaseCommand):
         desc = self.get_progress_bar_desc(self.progress_status)
         self.progress_bar.set_description(desc)
         self.progress_bar.update()
-
-    def delete_stale_documents(self, model, object_ids):
-        self.print_info("Deleting stale documents.")
-        es_ids = []
-        for item in model.es_doc_type.search().fields([]).scan():
-            es_ids.append(str(item.meta.id))
-        es_ids = set(es_ids)
-        stale_ids = es_ids - set(map(str, object_ids))
-        for stale_id in stale_ids:
-            model.es_doc_type.get(stale_id).delete(ignore=404)
-        self.print_success("Cleanup completed.")
 
     def get_progress_bar_desc(self, progress_status):
         desc = (
