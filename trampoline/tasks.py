@@ -42,7 +42,6 @@ def es_index_object(
         if fail_silently:
             logger.error(
                 "Exception occured while indexing object.",
-                exc_info=True,
                 extra={
                     'index_name': index_name,
                     'content_type_id': content_type_id,
@@ -78,7 +77,6 @@ def es_delete_doc(
         if trampoline_config.should_fail_silently:
             logger.error(
                 "Exception occured while deleting document.",
-                exc_info=True,
                 extra={
                     'index_name': index_name,
                     'doc_type_name': doc_type_name,
