@@ -53,8 +53,8 @@ def post_save_es_index(sender, instance, **kwargs):
             # is commited.
             transaction.on_commit(lambda: instance.es_index())
         except AttributeError:
-            # 1s countdown waiting for the transaction to complete.
-            instance.es_index(countdown=1)
+            # Countdown waiting for the transaction to complete.
+            instance.es_index(countdown=2)
 
 
 def post_delete_es_delete(sender, instance, **kwargs):
